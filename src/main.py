@@ -18,9 +18,11 @@ langs_dict = GoogleTranslator().get_supported_languages(as_dict=True)
 @app.post("/translate/", status_code=201)
 def translate_text(request: TranslationRequest):
     if request.target_lang not in langs_dict.values():
-        raise HTTPException(status_code=400, detail=f"Invalid request. Language code {request.target_lang} not supported.")
+        raise HTTPException(status_code=422, detail=f"Invalid request. Language code {request.target_lang} is not recognised.")
     translator = GoogleTranslator(target=request.target_lang)
     translated_text = translator.translate(request.text)
+    if request.text == translated_text:
+        raise HTTPException(status_code=422, detail='Translation error. Inputted text was not recognised. Please try again.')
     return {
         "original_text": request.text, 
         "original_lang": langdetect.detect(request.text), 

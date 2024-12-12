@@ -37,6 +37,13 @@ class TestPostTranslate:
 		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
 		assert response.json()['timestamp'] == 'mock_timestamp'
 	
-	def test_invalid_target_lang_returns_error_message(self):
-		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+	def test_invalid_target_lang_returns_error_message(self, test_client):
+		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "qq"})
+		assert response.status_code == 422
+		assert response.json() == {"detail": "Invalid request. Language code qq is not recognised."}
+	
+	def test_recognises_invalid_request_text(self, test_client):
+		response = test_client.post("/translate/", json={"text": "zjxhakgdhgadshg", "target_lang": "de"})
+		assert response.status_code == 422
+		assert response.json() == {'detail': 'Translation error. Inputted text was not recognised. Please try again.'}
 
