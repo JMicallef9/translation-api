@@ -57,8 +57,7 @@ class TestPostTranslate:
 		assert response.status_code == 201
 		assert response.json()['output_lang'] == 'de'
 
-	def test_error_message_returned_if_user_specified_input_lang_does_not_match_detected_lang(self, test_client):
+	def test_mismatch_recorded_if_input_lang_does_not_match_detected_lang(self, test_client):
 		payload = {"text": "Hello world", "target_lang": "DE", "input_lang": "lt"}
 		response = test_client.post("/translate/", json=payload)
-		assert response.status_code == 422
-		assert response.json()['detail'] == 'Mismatch detected. Input language specified as "lt", but language detected as "en". Please try again.'
+		assert response.json()['mismatch_detected']

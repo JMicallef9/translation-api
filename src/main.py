@@ -26,21 +26,26 @@ def translate_text(request: TranslationRequest):
         raise HTTPException(status_code=422, detail='Empty input provided. Please try again.')
 
     detected_lang = langdetect.detect(request.text)
-    if request.input_lang:
-        if request.input_lang != detected_lang:
-            raise HTTPException(status_code=422, detail=f'Mismatch detected. Input language specified as "{request.input_lang}", but language detected as "{detected_lang}". Please try again.')
-
+    
     translator = GoogleTranslator(source=detected_lang, target=request.target_lang.lower())
     translated_text = translator.translate(request.text)
-
 
     if request.text == translated_text:
         raise HTTPException(status_code=422, detail='Translation error. Inputted text was not recognised. Please try again.')
 
-    return {
+    input_lang = request.input_lang if request.input_lang else detected_lang
+
+    translation_info = {
         "original_text": request.text, 
-        "original_lang": detected_lang, 
+        "original_lang": input_lang, 
         "translated_text": translated_text,
         "output_lang": request.target_lang.lower(),
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "mismatch_detected": False
         }
+    
+    if request.input_lang and request.input_lang != detected_lang:
+        translation_info["mismatch_detected"] = True
+        
+    return translation_info
+    
