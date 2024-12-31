@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 import langdetect
@@ -26,9 +27,13 @@ def translate_text(request: TranslationRequest):
         raise HTTPException(status_code=422, detail='Empty input provided. Please try again.')
 
     detected_lang = langdetect.detect(request.text)
-    
-    translator = GoogleTranslator(source=detected_lang, target=request.target_lang.lower())
-    translated_text = translator.translate(request.text)
+    try:
+        translator = GoogleTranslator(source=detected_lang, target=request.target_lang.lower())
+        translated_text = translator.translate(request.text)
+    except ConnectionError:
+        raise HTTPException(status_code=503, detail='Connection to translation service failed')
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail='Translation request timed out')
 
     if request.text == translated_text:
         raise HTTPException(status_code=422, detail='Translation error. Inputted text was not recognised. Please try again.')
@@ -48,4 +53,9 @@ def translate_text(request: TranslationRequest):
         translation_info["mismatch_detected"] = True
         
     return translation_info
-    
+
+@app.exception_handler(RuntimeError)
+def handle_unexpected_errors(request: Request, exc: RuntimeError):
+	return JSONResponse (
+		status_code=500,
+		content={'detail':"An unexpected error occurred"})

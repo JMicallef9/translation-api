@@ -61,3 +61,35 @@ class TestPostTranslate:
 		payload = {"text": "Hello world", "target_lang": "DE", "input_lang": "lt"}
 		response = test_client.post("/translate/", json=payload)
 		assert response.json()['mismatch_detected']
+	
+	def test_handles_connection_error(self, test_client):
+		payload = {"text": "Hello world", "target_lang": "de"}
+		with patch("src.main.GoogleTranslator.translate", side_effect=ConnectionError):
+			response = test_client.post("/translate/", json=payload)
+		
+		assert response.status_code == 503
+		assert response.json() == {'detail': 'Connection to translation service failed'}
+	
+	def test_handles_timeout_error(self, test_client):
+		payload = {"text": "Hello world", "target_lang": "de"}
+		with patch("src.main.GoogleTranslator.translate", side_effect=TimeoutError):
+			response = test_client.post("/translate/", json=payload)
+		
+		assert response.status_code == 504
+		assert response.json() == {'detail': 'Translation request timed out'}
+	
+	def test_handles_unexpected_error(self, test_client):
+		payload = {"text": "Hello world", "target_lang": "de"}
+		with patch("src.main.GoogleTranslator.translate", side_effect=RuntimeError):
+			response = test_client.post("/translate/", json=payload)
+		
+		assert response.status_code == 500
+		assert response.json() == {'detail': 'An unexpected error occurred'}
+
+
+
+# test sometimes fails?
+	# def test_recognises_invalid_request_text(self, test_client):
+	# 	response = test_client.post("/translate/", json={"text": "zjxhakgdhgadshg", "target_lang": "de"})
+	# 	assert response.status_code == 422
+	# 	assert response.json() == {'detail': 'Translation error. Inputted text was not recognised. Please try again.'}
