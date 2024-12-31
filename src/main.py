@@ -55,7 +55,7 @@ def translate_text(request: TranslationRequest):
     return translation_info
 
 @app.exception_handler(RuntimeError)
-def handle_unexpected_errors(request: Request, exc: RuntimeError):
+def handle_runtime_errors(request: Request, exc: RuntimeError):
 	return JSONResponse (
 		status_code=500,
 		content={'detail':"An unexpected error occurred"})

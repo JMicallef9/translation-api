@@ -36,7 +36,7 @@ class TestPostTranslate:
 	def test_response_includes_timestamp(self, datetime_mock, test_client):
 		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
 		assert response.json()['timestamp'] == 'mock_timestamp'
-	
+
 	def test_invalid_target_lang_returns_error_message(self, test_client):
 		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "qq"})
 		assert response.status_code == 422
@@ -51,7 +51,7 @@ class TestPostTranslate:
 		response = test_client.post("/translate/", json={"text": "", "target_lang": "de"})
 		assert response.status_code == 422
 		assert response.json() == {'detail': 'Empty input provided. Please try again.'}
-	
+
 	def test_language_code_detection_is_case_insensitive(self, test_client):
 		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
 		assert response.status_code == 201
@@ -78,7 +78,7 @@ class TestPostTranslate:
 		assert response.status_code == 504
 		assert response.json() == {'detail': 'Translation request timed out'}
 	
-	def test_handles_unexpected_error(self, test_client):
+	def test_handles_runtime_errors(self, test_client):
 		payload = {"text": "Hello world", "target_lang": "de"}
 		with patch("src.main.GoogleTranslator.translate", side_effect=RuntimeError):
 			response = test_client.post("/translate/", json=payload)
@@ -87,6 +87,13 @@ class TestPostTranslate:
 		assert response.json() == {'detail': 'An unexpected error occurred'}
 
 
+
+
+	# def test_http_exception_handler(self, test_client):
+	# 	# Trigger an HTTPException by making an invalid request
+	# 	response = test_client.get("/nonexistent-endpoint/")
+	# 	assert response.status_code == 404
+	# 	assert response.json() == {"detail": "Not Found"}
 
 # test sometimes fails?
 	# def test_recognises_invalid_request_text(self, test_client):
