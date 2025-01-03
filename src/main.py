@@ -26,7 +26,13 @@ def translate_text(request: TranslationRequest):
     if not request.text:
         raise HTTPException(status_code=422, detail='Empty input provided. Please try again.')
 
-    detected_lang = langdetect.detect(request.text)
+    try:
+        detected_lang = langdetect.detect(request.text)
+        if not detected_lang or len(detected_lang) != 2:
+            raise HTTPException(status_code=422, detail='Input language could not be detected. Please try again.')
+    except langdetect.lang_detect_exception.LangDetectException:
+        raise HTTPException(status_code=422, detail='Input language could not be detected. Please try again.')
+
     try:
         translator = GoogleTranslator(source=detected_lang, target=request.target_lang.lower())
         translated_text = translator.translate(request.text)
