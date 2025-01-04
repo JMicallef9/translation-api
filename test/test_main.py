@@ -100,4 +100,15 @@ class TestPostTranslate:
 		with patch("src.main.langdetect.detect", side_effect=LangDetectException("400", "test message")):
 			response = test_client.post("/translate/", json=payload)
 		assert response.status_code == 422
-		assert response.json() == {'detail': 'Input language could not be detected. Please try again.'}	
+		assert response.json() == {'detail': 'Input language could not be detected. Please try again.'}
+
+class TestGetLanguages:
+    def test_returns_list_of_available_languages(self, test_client):
+        response = test_client.get("/languages/")
+        assert response.status_code == 201
+        body = response.json()['languages'].items()
+        for key, value in body:
+            assert type(key) == str
+            assert type(value) == str
+            assert len(key) > len(value)
+        assert len(body) > 40
