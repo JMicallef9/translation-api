@@ -60,6 +60,12 @@ def translate_text(request: TranslationRequest):
         
     return translation_info
 
+@app.get("/languages/", status_code=201)
+def get_languages():
+    langs_dict = GoogleTranslator().get_supported_languages(as_dict=True)
+    return {'languages': langs_dict}
+
+
 @app.exception_handler(RuntimeError)
 def handle_runtime_errors(request: Request, exc: RuntimeError):
 	return JSONResponse (
