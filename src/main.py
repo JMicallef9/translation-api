@@ -5,7 +5,8 @@ from deep_translator import GoogleTranslator
 import langdetect
 from datetime import datetime
 from typing import Optional
-
+from src.s3_utils import save_to_s3
+import boto3
 
 langdetect.DetectorFactory.seed = 0
 
@@ -57,6 +58,8 @@ def translate_text(request: TranslationRequest):
     
     if request.input_lang and request.input_lang != detected_lang:
         translation_info["mismatch_detected"] = True
+
+    save_to_s3(translation_info, 'translation_api_translations_bucket')
         
     return translation_info
 

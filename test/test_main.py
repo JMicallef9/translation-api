@@ -3,6 +3,9 @@ from src.main import app
 import pytest
 from unittest.mock import patch, MagicMock
 from langdetect.lang_detect_exception import LangDetectException
+from moto import mock_aws
+import boto3
+import json
 
 @pytest.fixture()
 def test_client():
@@ -21,6 +24,16 @@ def datetime_mock():
 		mock_now.isoformat.return_value = 'mock_timestamp'
 		mock_dt.now.return_value = mock_now
 		yield mock_dt
+
+@pytest.fixture()
+def s3_mock():
+    with mock_aws():
+        s3 = boto3.client('s3', region_name='eu-west-2')
+        s3.create_bucket(Bucket='translation_api_translations_bucket',
+                         CreateBucketConfiguration={
+                            'LocationConstraint': 'eu-west-2'
+                         })
+        yield s3
 
 class TestPostTranslate:
 	def test_returns_201_status_code(self, de_translation_request):
@@ -101,6 +114,27 @@ class TestPostTranslate:
 			response = test_client.post("/translate/", json=payload)
 		assert response.status_code == 422
 		assert response.json() == {'detail': 'Input language could not be detected. Please try again.'}
+	
+	def test_data_saved_to_s3_bucket(self, test_client, s3_mock, datetime_mock):
+		test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+
+		object_list = s3_mock.list_objects_v2(Bucket='translation_api_translations_bucket')
+
+		assert object_list['Contents'][0]['Key'] == 'mock_timestamp'
+		result = s3_mock.get_object(
+            Bucket='translation_api_translations_bucket',
+            Key='mock_timestamp')['Body'].read()
+		
+		assert json.loads(result)['original_text'] == 'Hello world'
+		assert json.loads(result)['original_lang'] == 'en'
+		assert json.loads(result)['translated_text'] == 'Hallo Welt'
+		assert json.loads(result)['output_lang'] == 'de'
+		assert json.loads(result)['timestamp'] == 'mock_timestamp'
+		assert json.loads(result)['mismatch_detected'] == False
+
+
+
+
 
 class TestGetLanguages:
     def test_returns_list_of_available_languages(self, test_client):
