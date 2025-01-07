@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from src.main import app
+from src.main import app, save_to_s3
 import pytest
 from unittest.mock import patch, MagicMock
 from langdetect.lang_detect_exception import LangDetectException
@@ -35,6 +35,33 @@ def datetime_mock():
 		mock_now.isoformat.return_value = 'mock_timestamp'
 		mock_dt.now.return_value = mock_now
 		yield mock_dt
+
+
+@pytest.fixture()
+def dummy_request():
+    return {"original_text": 'Hello world', 
+        "original_lang": 'en', 
+        "translated_text": 'Hallo Welt',
+        "output_lang": 'de',
+        "timestamp": '2015-01-27T05:57:31.399861+00:00',
+        "mismatch_detected": False
+        }
+
+class TestSaveToS3:
+    def test_object_saved_to_s3_bucket(self, s3_mock, dummy_request):
+        save_to_s3(dummy_request, 'translation_api_translations_bucket', dummy_request['timestamp'], s3_mock)
+
+        object_list = s3_mock.list_objects_v2(Bucket='translation_api_translations_bucket')
+        assert object_list['Contents'][0]['Key'] == '2015-01-27T05:57:31.399861+00:00'
+
+    def test_object_body_contains_expected_data(self, s3_mock, dummy_request):
+        save_to_s3(dummy_request, 'translation_api_translations_bucket', dummy_request['timestamp'], s3_mock)
+
+        result = s3_mock.get_object(
+            Bucket='translation_api_translations_bucket',
+            Key='2015-01-27T05:57:31.399861+00:00')['Body'].read()
+
+        assert json.loads(result) == dummy_request
 
 
 class TestPostTranslate:
