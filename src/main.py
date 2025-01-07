@@ -1,12 +1,12 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 import langdetect
 from datetime import datetime
 from typing import Optional
-from src.s3_utils import save_to_s3
 import boto3
+import json
 
 langdetect.DetectorFactory.seed = 0
 
@@ -19,8 +19,17 @@ class TranslationRequest(BaseModel):
 
 langs_dict = GoogleTranslator().get_supported_languages(as_dict=True)
 
+def get_s3_client():
+    return boto3.client('s3', region_name='eu-west-2')
+
+def save_to_s3(data, bucket_name, key, s3_client):
+    data_json = json.dumps(data)
+    s3_client.put_object(Bucket=bucket_name,
+                         Body=data_json,
+                         Key=key)
+
 @app.post("/translate/", status_code=201)
-def translate_text(request: TranslationRequest):
+def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)):
     if request.target_lang.lower() not in [lang.lower() for lang in langs_dict.values()]:
         raise HTTPException(status_code=422, detail=f"Invalid language code: {request.target_lang}. Please check the list of supported languages.")
 
@@ -59,7 +68,7 @@ def translate_text(request: TranslationRequest):
     if request.input_lang and request.input_lang != detected_lang:
         translation_info["mismatch_detected"] = True
 
-    save_to_s3(translation_info, 'translation_api_translations_bucket')
+    save_to_s3(translation_info, 'translation_api_translations_bucket', translation_info['timestamp'], s3_client)
         
     return translation_info
 
