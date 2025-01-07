@@ -13,8 +13,19 @@ def test_client():
 	return client
 
 @pytest.fixture()
-def de_translation_request(test_client):
-	response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+def s3_mock():
+    with mock_aws():
+        s3 = boto3.client('s3', region_name='eu-west-2')
+        s3.create_bucket(Bucket='translation_api_translations_bucket',
+                         CreateBucketConfiguration={
+                            'LocationConstraint': 'eu-west-2'
+                         })
+        yield s3
+
+@pytest.fixture()
+def de_translation_request(test_client, s3_mock):
+	with patch("src.main.get_s3_client", return_value=s3_mock):
+		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
 	return response
 
 @pytest.fixture()
@@ -25,20 +36,11 @@ def datetime_mock():
 		mock_dt.now.return_value = mock_now
 		yield mock_dt
 
-@pytest.fixture()
-def s3_mock():
-    with mock_aws():
-        s3 = boto3.client('s3', region_name='eu-west-2')
-        s3.create_bucket(Bucket='translation_api_translations_bucket',
-                         CreateBucketConfiguration={
-                            'LocationConstraint': 'eu-west-2'
-                         })
-        yield s3
 
 class TestPostTranslate:
 	def test_returns_201_status_code(self, de_translation_request):
 		assert de_translation_request.status_code == 201
-	
+
 	def test_response_includes_original_and_translated_text(self, de_translation_request):
 		assert de_translation_request.json()['original_text'] == 'Hello world'
 		assert de_translation_request.json()['translated_text'] == 'Hallo Welt'
@@ -47,10 +49,11 @@ class TestPostTranslate:
 		assert de_translation_request.json()['original_lang'] == 'en'
 		assert de_translation_request.json()['output_lang'] == 'de'
 
-	def test_response_includes_timestamp(self, datetime_mock, test_client):
-		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+	def test_response_includes_timestamp(self, datetime_mock, test_client, s3_mock):
+		with patch("src.main.get_s3_client", return_value=s3_mock):
+			response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
 		assert response.json()['timestamp'] == 'mock_timestamp'
-
+	
 	def test_invalid_target_lang_returns_error_message(self, test_client):
 		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "qq"})
 		assert response.status_code == 422
@@ -66,14 +69,16 @@ class TestPostTranslate:
 		assert response.status_code == 422
 		assert response.json() == {'detail': 'Empty input provided. Please try again.'}
 
-	def test_language_code_detection_is_case_insensitive(self, test_client):
-		response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
+	def test_language_code_detection_is_case_insensitive(self, test_client, s3_mock):
+		with patch("src.main.get_s3_client", return_value=s3_mock):
+			response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
 		assert response.status_code == 201
 		assert response.json()['output_lang'] == 'de'
 
-	def test_mismatch_recorded_if_input_lang_does_not_match_detected_lang(self, test_client):
+	def test_mismatch_recorded_if_input_lang_does_not_match_detected_lang(self, test_client, s3_mock):
 		payload = {"text": "Hello world", "target_lang": "DE", "input_lang": "lt"}
-		response = test_client.post("/translate/", json=payload)
+		with patch("src.main.get_s3_client", return_value=s3_mock):
+			response = test_client.post("/translate/", json=payload)
 		assert response.json()['mismatch_detected']
 	
 	def test_handles_connection_error(self, test_client):
@@ -115,24 +120,23 @@ class TestPostTranslate:
 		assert response.status_code == 422
 		assert response.json() == {'detail': 'Input language could not be detected. Please try again.'}
 	
-	def test_data_saved_to_s3_bucket(self, test_client, s3_mock, datetime_mock):
-		test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
-
+	def test_data_saved_to_s3_bucket(self, s3_mock, test_client, datetime_mock):
+		with patch("src.main.get_s3_client", return_value=s3_mock):
+			response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+		
 		object_list = s3_mock.list_objects_v2(Bucket='translation_api_translations_bucket')
 
 		assert object_list['Contents'][0]['Key'] == 'mock_timestamp'
 		result = s3_mock.get_object(
-            Bucket='translation_api_translations_bucket',
-            Key='mock_timestamp')['Body'].read()
-		
+				Bucket='translation_api_translations_bucket',
+				Key='mock_timestamp')['Body'].read()
+			
 		assert json.loads(result)['original_text'] == 'Hello world'
 		assert json.loads(result)['original_lang'] == 'en'
 		assert json.loads(result)['translated_text'] == 'Hallo Welt'
 		assert json.loads(result)['output_lang'] == 'de'
 		assert json.loads(result)['timestamp'] == 'mock_timestamp'
 		assert json.loads(result)['mismatch_detected'] == False
-
-
 
 
 
