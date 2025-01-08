@@ -20,9 +20,30 @@ class TranslationRequest(BaseModel):
 langs_dict = GoogleTranslator().get_supported_languages(as_dict=True)
 
 def get_s3_client():
+    '''
+    Create and return a Boto3 S3 client.
+
+    Args:
+        None
+
+    Returns:
+        Boto3 S3 client object used to interact with AWS S3.
+    '''
     return boto3.client('s3', region_name='eu-west-2')
 
 def save_to_s3(data, bucket_name, key, s3_client):
+    '''
+    Save data to an AWS S3 bucket.
+    
+    Args:
+        data (dict): The data to be saved to the S3 bucket.
+        bucket (str): The name of the S3 bucket.
+        key (str): The file name under which the data will be saved.
+        s3_client (boto3.client): The Boto3 S3 client used to interact with AWS S3.
+    
+    Returns:
+        None
+    '''
     data_json = json.dumps(data)
     s3_client.put_object(Bucket=bucket_name,
                          Body=data_json,
