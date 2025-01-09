@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from src.main import app, save_to_s3
+from src.main import app, save_to_s3, get_s3_client
 import pytest
 from unittest.mock import patch, MagicMock
 from langdetect.lang_detect_exception import LangDetectException
@@ -21,6 +21,15 @@ def s3_mock():
                             'LocationConstraint': 'eu-west-2'
                          })
         yield s3
+
+@pytest.fixture()
+def test_client_with_s3_mock(s3_mock):
+	def override_get_s3_client():
+		return s3_mock
+	app.dependency_overrides[get_s3_client] = override_get_s3_client
+	client = TestClient(app)
+	yield client
+	app.dependency_overrides.clear()
 
 @pytest.fixture()
 def de_translation_request(test_client, s3_mock):
@@ -76,9 +85,8 @@ class TestPostTranslate:
 		assert de_translation_request.json()['original_lang'] == 'en'
 		assert de_translation_request.json()['output_lang'] == 'de'
 
-	def test_response_includes_timestamp(self, datetime_mock, test_client, s3_mock):
-		with patch("src.main.get_s3_client", return_value=s3_mock):
-			response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+	def test_response_includes_timestamp(self, datetime_mock, test_client_with_s3_mock):
+		response = test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
 		assert response.json()['timestamp'] == 'mock_timestamp'
 	
 	def test_invalid_target_lang_returns_error_message(self, test_client):
