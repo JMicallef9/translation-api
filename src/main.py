@@ -51,6 +51,27 @@ def save_to_s3(data, bucket_name, key, s3_client):
 
 @app.post("/translate/", status_code=201)
 def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)):
+    '''
+    Translate text from one language to another.
+
+    This endpoint accepts text and a target language as input. The text is translated into the target language using Google Translate. Information about the translation is saved to an AWS S3 bucket.
+        
+    Args:
+    request (TranslationRequest): A request body containing:
+        - text (str): The text to be translated.
+        - target_lang (str): The code of the target language.
+        - input_lang (Optional[str]): The code of the input language (if not provided, this will be detected automatically).
+    s3_client (boto3.client, optional): The Boto3 S3 client, injected as a dependency.
+    
+    Returns:
+        dict: A JSON object containing:
+            - original_text (str): The input text.
+            - original_lang (str): The code of the input language, either specified or detected.
+            - translated_text (str): The translated text.
+            - output_lang (str): The code of the target language.
+            - timestamp (str): The time when the translation was processed.
+            - mismatch_detected (bool): Indicates whether a mismatch was found between the specified and automatically detected input languages.
+    '''
     if request.target_lang.lower() not in [lang.lower() for lang in langs_dict.values()]:
         raise HTTPException(status_code=422, detail=f"Invalid language code: {request.target_lang}. Please check the list of supported languages.")
 
