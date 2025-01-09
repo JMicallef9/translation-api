@@ -130,6 +130,19 @@ def get_languages():
 
 @app.exception_handler(RuntimeError)
 def handle_runtime_errors(request: Request, exc: RuntimeError):
-	return JSONResponse (
+    '''
+    Handles RuntimeError exceptions raised during API execution.
+
+    The exception handler is triggered whenever a RuntimeError occurs. It returns a standardised error response with a 500 status code.
+
+    Args:
+        request (Request): The HTTP request that caused the exception.
+        exc (RuntimeError): The RuntimeError instance that was raised.
+    
+    Returns:
+        JSONResponse: A JSON response containing the following information:
+            - detail (str): A message indicating that an unexpected error occurred.
+    '''
+    return JSONResponse (
 		status_code=500,
 		content={'detail':"An unexpected error occurred"})
