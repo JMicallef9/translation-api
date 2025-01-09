@@ -116,6 +116,15 @@ def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)
 
 @app.get("/languages/", status_code=201)
 def get_languages():
+    '''
+    This endpoint provides a list of languages supported by the translation API.
+        
+    Args:
+        None
+    
+    Returns:
+        dict: A JSON object containing the unique language codes and language names for all supported languages.
+    '''
     langs_dict = GoogleTranslator().get_supported_languages(as_dict=True)
     return {'languages': langs_dict}
 
