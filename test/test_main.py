@@ -176,7 +176,7 @@ class TestPostTranslate:
 
 class TestGetLanguages:
 	def test_returns_list_of_available_languages(self, test_client):
-		response = test_client.get("/languages")
+		response = test_client.get("/languages/")
 		assert response.status_code == 201
 		assert isinstance(response.json(), dict)
 		body = response.json()['languages'].items()
@@ -185,3 +185,24 @@ class TestGetLanguages:
 			assert type(value) == str
 			assert len(key) > len(value)
 		assert len(body) > 40
+	
+	def test_request_made_to_invalid_endpoint(self, test_client):
+		response = test_client.get("/langs/")
+		assert response.status_code == 404
+	
+	# def test_underlying_function_only_called_once(self, test_client, monkeypatch):
+	# 	call_count = 0
+
+	# 	def mock_get_supported_languages():
+	# 		nonlocal call_count
+	# 		call_count += 1
+	# 		return {"en": "English", "de": "German"}
+		
+	# 	monkeypatch.setattr("src.main.GoogleTranslator.get_langs_dict", mock_get_supported_languages)
+
+	# 	response = test_client.get("/languages/")
+	# 	response = test_client.get("/languages/")
+
+	# 	assert call_count == 1
+
+
