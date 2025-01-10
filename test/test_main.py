@@ -94,10 +94,10 @@ class TestPostTranslate:
 		assert response.status_code == 422
 		assert response.json() == {"detail": "Invalid language code: qq. Please check the list of supported languages."}
 	
-	def test_recognises_invalid_request_text(self, test_client):
-		response = test_client.post("/translate/", json={"text": "zjxhakgdhgadshg", "target_lang": "de"})
+	def test_recognises_invalid_request_text(self, test_client_with_s3_mock):
+		response = test_client_with_s3_mock.post("/translate/", json={"text": "!!!!!!!@@@@@@*****??????", "target_lang": "de"})
 		assert response.status_code == 422
-		assert response.json() == {'detail': 'Translation error. Inputted text was not recognised. Please try again.'}
+		assert response.json() == {'detail': 'Input language could not be detected. Please try again.'}
 
 	def test_empty_input_returns_error_message(self, test_client):
 		response = test_client.post("/translate/", json={"text": "", "target_lang": "de"})
@@ -174,14 +174,14 @@ class TestPostTranslate:
 		assert json.loads(result)['mismatch_detected'] == False
 
 
-
 class TestGetLanguages:
-    def test_returns_list_of_available_languages(self, test_client):
-        response = test_client.get("/languages/")
-        assert response.status_code == 201
-        body = response.json()['languages'].items()
-        for key, value in body:
-            assert type(key) == str
-            assert type(value) == str
-            assert len(key) > len(value)
-        assert len(body) > 40
+	def test_returns_list_of_available_languages(self, test_client):
+		response = test_client.get("/languages")
+		assert response.status_code == 201
+		assert isinstance(response.json(), dict)
+		body = response.json()['languages'].items()
+		for key, value in body:
+			assert type(key) == str
+			assert type(value) == str
+			assert len(key) > len(value)
+		assert len(body) > 40
