@@ -49,6 +49,18 @@ def save_to_s3(data, bucket_name, key, s3_client):
                          Body=data_json,
                          Key=key)
 
+def fetch_latest_id(bucket_name, s3_client):
+    objects = s3_client.list_objects_v2(Bucket=bucket_name)
+    if 'Contents' not in objects:
+        return 0
+    last_modified = lambda obj: int(obj['LastModified'].strftime('%s'))
+    latest_key = [obj['Key'] for obj in sorted(objects['Contents'], key=last_modified)][0]
+    last_item = s3_client.get_object(
+        Bucket=bucket_name, 
+        Key=latest_key)['Body'].read()
+    latest_id = json.loads(last_item)['id']
+    return latest_id
+
 @app.post("/translate/", status_code=201)
 def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)):
     '''
@@ -97,6 +109,8 @@ def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)
         raise HTTPException(status_code=422, detail='Translation error. Inputted text was not recognised. Please try again.')
 
     input_lang = request.input_lang if request.input_lang else detected_lang
+
+    latest_id = fetch_latest_id('translation_api_translations_bucket', s3_client)
 
     translation_info = {
         "original_text": request.text, 
