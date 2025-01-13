@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from src.main import app, save_to_s3, get_s3_client
+from src.main import app, save_to_s3, get_s3_client, fetch_latest_id
 import pytest
 from unittest.mock import patch, MagicMock
 from langdetect.lang_detect_exception import LangDetectException
@@ -72,6 +72,15 @@ class TestSaveToS3:
 
         assert json.loads(result) == dummy_request
 
+class TestFetchLatestID:
+	def test_returns_latest_id(self, s3_mock, de_translation_request):
+		result = fetch_latest_id('translation_api_translations_bucket', s3_mock)
+		assert result == 1
+		assert isinstance(result, int)
+	
+	def test_returns_zero_if_bucket_empty(self, s3_mock):
+		result = fetch_latest_id('translation_api_translations_bucket', s3_mock)
+		assert result == 0
 
 class TestPostTranslate:
 	def test_returns_201_status_code(self, de_translation_request):
@@ -173,6 +182,11 @@ class TestPostTranslate:
 		assert json.loads(result)['timestamp'] == 'mock_timestamp'
 		assert json.loads(result)['mismatch_detected'] == False
 
+	def test_posted_translation_has_unique_id(self, test_client_with_s3_mock):
+		response = test_client_with_s3_mock.post("/translate/", json={"text": "magnificent adventures", "target_lang": "es"})
+		assert response.status_code == 201
+		assert response.json()['id'] == 1
+
 
 class TestGetLanguages:
 	def test_returns_list_of_available_languages(self, test_client):
@@ -189,20 +203,6 @@ class TestGetLanguages:
 	def test_request_made_to_invalid_endpoint(self, test_client):
 		response = test_client.get("/langs/")
 		assert response.status_code == 404
-	
-	# def test_underlying_function_only_called_once(self, test_client, monkeypatch):
-	# 	call_count = 0
 
-	# 	def mock_get_supported_languages():
-	# 		nonlocal call_count
-	# 		call_count += 1
-	# 		return {"en": "English", "de": "German"}
-		
-	# 	monkeypatch.setattr("src.main.GoogleTranslator.get_langs_dict", mock_get_supported_languages)
-
-	# 	response = test_client.get("/languages/")
-	# 	response = test_client.get("/languages/")
-
-	# 	assert call_count == 1
 
 
