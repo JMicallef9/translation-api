@@ -73,7 +73,9 @@ class TestSaveToS3:
         assert json.loads(result) == dummy_request
 
 class TestFetchLatestID:
-	def test_returns_latest_id(self, s3_mock, de_translation_request):
+	def test_returns_latest_id(self, s3_mock, test_client):
+		with patch("src.main.get_s3_client", return_value=s3_mock):
+			test_client.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
 		result = fetch_latest_id('translation_api_translations_bucket', s3_mock)
 		assert result == 1
 		assert isinstance(result, int)
@@ -81,6 +83,15 @@ class TestFetchLatestID:
 	def test_returns_zero_if_bucket_empty(self, s3_mock):
 		result = fetch_latest_id('translation_api_translations_bucket', s3_mock)
 		assert result == 0
+	
+	def test_fetches_latest_id_from_multiple_objects(self, s3_mock, test_client):
+		with patch("src.main.get_s3_client", return_value=s3_mock):
+			test_client.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
+			test_client.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
+		result = fetch_latest_id('translation_api_translations_bucket', s3_mock)
+		assert result == 2
+		assert isinstance(result, int)
+
 
 class TestPostTranslate:
 	def test_returns_201_status_code(self, de_translation_request):
