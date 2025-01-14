@@ -53,7 +53,7 @@ def fetch_latest_id(bucket_name, s3_client):
     objects = s3_client.list_objects_v2(Bucket=bucket_name)
     if 'Contents' not in objects:
         return 0
-    last_modified = lambda obj: int(obj['LastModified'].strftime('%s'))
+    last_modified = lambda obj: obj['LastModified']
     latest_key = [obj['Key'] for obj in sorted(objects['Contents'], key=last_modified)][-1]
     last_item = s3_client.get_object(
         Bucket=bucket_name, 
