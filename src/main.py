@@ -54,7 +54,7 @@ def fetch_latest_id(bucket_name, s3_client):
     if 'Contents' not in objects:
         return 0
     last_modified = lambda obj: int(obj['LastModified'].strftime('%s'))
-    latest_key = [obj['Key'] for obj in sorted(objects['Contents'], key=last_modified)][0]
+    latest_key = [obj['Key'] for obj in sorted(objects['Contents'], key=last_modified)][-1]
     last_item = s3_client.get_object(
         Bucket=bucket_name, 
         Key=latest_key)['Body'].read()
@@ -113,6 +113,7 @@ def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)
     latest_id = fetch_latest_id('translation_api_translations_bucket', s3_client)
 
     translation_info = {
+        "id": latest_id+1,
         "original_text": request.text, 
         "original_lang": input_lang, 
         "translated_text": translated_text,
