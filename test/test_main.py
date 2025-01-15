@@ -215,5 +215,16 @@ class TestGetLanguages:
 		response = test_client.get("/langs/")
 		assert response.status_code == 404
 
+class TestGetTranslations:
+	def test_request_successfully_returns_data(self, test_client_with_s3_mock):
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
+		response = test_client_with_s3_mock.get("/translations/")
+		assert response.status_code == 200
+		assert isinstance(response.json()['translations'], list)
+
+
+
+
 
 
