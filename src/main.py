@@ -153,6 +153,11 @@ def get_languages():
     langs_dict = GoogleTranslator().get_supported_languages(as_dict=True)
     return {'languages': langs_dict}
 
+@app.get("/translations/")
+def get_translations():
+    return {'translations': []}
+
+
 @app.exception_handler(RuntimeError)
 def handle_runtime_errors(request: Request, exc: RuntimeError):
     '''
