@@ -50,6 +50,16 @@ def save_to_s3(data, bucket_name, key, s3_client):
                          Key=key)
 
 def fetch_latest_id(bucket_name, s3_client):
+    '''
+    Fetch the latest unique ID number from files in an S3 bucket.
+    
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        s3_client (boto3.client): The Boto3 S3 client used to interact with AWS S3.
+    
+    Returns:
+        int: The ID number of a file.
+    '''
     objects = s3_client.list_objects_v2(Bucket=bucket_name)
     if 'Contents' not in objects:
         return 0
