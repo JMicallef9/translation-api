@@ -73,10 +73,9 @@ class TestSaveToS3:
         assert json.loads(result) == dummy_request
 
 class TestFetchLatestID:
-	def test_returns_latest_id(self, s3_mock, test_client):
-		with patch("src.main.get_s3_client", return_value=s3_mock):
-			test_client.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
-		result = fetch_latest_id('translation_api_translations_bucket', s3_mock)
+	def test_returns_latest_id(self, test_client_with_s3_mock):
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
+		result = fetch_latest_id('translation_api_translations_bucket', get_s3_client())
 		assert result == 1
 		assert isinstance(result, int)
 	
@@ -84,11 +83,10 @@ class TestFetchLatestID:
 		result = fetch_latest_id('translation_api_translations_bucket', s3_mock)
 		assert result == 0
 	
-	def test_fetches_latest_id_from_multiple_objects(self, s3_mock, test_client):
-		with patch("src.main.get_s3_client", return_value=s3_mock):
-			test_client.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
-			test_client.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
-		result = fetch_latest_id('translation_api_translations_bucket', s3_mock)
+	def test_fetches_latest_id_from_multiple_objects(self, test_client_with_s3_mock):
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
+		result = fetch_latest_id('translation_api_translations_bucket', get_s3_client())
 		assert result == 2
 		assert isinstance(result, int)
 
@@ -175,14 +173,13 @@ class TestPostTranslate:
 		assert response.status_code == 422
 		assert response.json() == {'detail': 'Input language could not be detected. Please try again.'}
 	
-	def test_data_saved_to_s3_bucket(self, s3_mock, test_client, datetime_mock):
-		with patch("src.main.get_s3_client", return_value=s3_mock):
-			response = test_client.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+	def test_data_saved_to_s3_bucket(self, test_client_with_s3_mock, datetime_mock):
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
 		
-		object_list = s3_mock.list_objects_v2(Bucket='translation_api_translations_bucket')
+		object_list = get_s3_client().list_objects_v2(Bucket='translation_api_translations_bucket')
 
 		assert object_list['Contents'][0]['Key'] == 'mock_timestamp'
-		result = s3_mock.get_object(
+		result = get_s3_client().get_object(
 				Bucket='translation_api_translations_bucket',
 				Key='mock_timestamp')['Body'].read()
 			
