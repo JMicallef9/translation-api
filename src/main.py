@@ -29,7 +29,9 @@ def get_s3_client():
     Returns:
         Boto3 S3 client object used to interact with AWS S3.
     '''
-    return boto3.client('s3', region_name='eu-west-2')
+    if not hasattr(get_s3_client, "_client"):
+        get_s3_client._client = boto3.client('s3', region_name='eu-west-2')
+    return get_s3_client._client
 
 def save_to_s3(data, bucket_name, key, s3_client):
     '''
@@ -154,8 +156,9 @@ def get_languages():
     return {'languages': langs_dict}
 
 @app.get("/translations/")
-def get_translations():
+def get_translations(s3_client=Depends(get_s3_client)):
     
+
     return {'translations': []}
 
 
