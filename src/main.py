@@ -155,6 +155,7 @@ def get_languages():
 
 @app.get("/translations/")
 def get_translations():
+    
     return {'translations': []}
 
 
