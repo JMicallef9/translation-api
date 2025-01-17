@@ -219,6 +219,7 @@ class TestGetTranslations:
 		response = test_client_with_s3_mock.get("/translations/")
 		assert response.status_code == 200
 		assert isinstance(response.json()['translations'], list)
+		assert len(response.json()['translations']) == 2
 
 	def test_returns_single_translation_dictionary(self, test_client_with_s3_mock):
 		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
