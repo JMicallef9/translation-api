@@ -157,9 +157,18 @@ def get_languages():
 
 @app.get("/translations/")
 def get_translations(s3_client=Depends(get_s3_client)):
-    
+    objects = s3_client.list_objects_v2(Bucket='translation_api_translations_bucket')
+    if 'Contents' not in objects:
+        return 0
+    last_modified = lambda obj: obj['LastModified']
+    translations = []
+    for obj in objects['Contents']:
+        data = s3_client.get_object(Bucket='translation_api_translations_bucket',
+        Key=obj['Key'])['Body'].read()
+        extracted_dict = json.loads(data)
+        translations.append(extracted_dict)
 
-    return {'translations': []}
+    return {'translations': translations}    
 
 
 @app.exception_handler(RuntimeError)
