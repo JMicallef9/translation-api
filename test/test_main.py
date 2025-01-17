@@ -227,9 +227,15 @@ class TestGetTranslations:
 		assert response.status_code == 200
 		assert len(response.json()['translations']) == 1
 
-
-
-
-
-
+	def test_returns_correct_data_from_single_dict(self, test_client_with_s3_mock, datetime_mock):
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+		response = test_client_with_s3_mock.get("/translations/")
+		assert response.json() == {'translations': [{
+			"id": 1,
+			'original_text': 'Hello world',
+			"original_lang": 'en',
+			'translated_text': 'Hallo Welt',
+			'output_lang': 'de',
+			'timestamp': 'mock_timestamp',
+			'mismatch_detected': False}]}
 
