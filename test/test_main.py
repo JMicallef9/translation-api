@@ -239,3 +239,9 @@ class TestGetTranslations:
 			'timestamp': 'mock_timestamp',
 			'mismatch_detected': False}]}
 
+	def test_returns_message_if_no_translations(self, test_client_with_s3_mock):
+		response = test_client_with_s3_mock.get("/translations/")
+		assert response.status_code == 200
+		assert response.json() == {'message': 'No translations found'}
+
+
