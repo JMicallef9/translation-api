@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Optional
 import boto3
 import json
+from botocore.exceptions import ClientError
 
 langdetect.DetectorFactory.seed = 0
 
@@ -157,17 +158,25 @@ def get_languages():
 
 @app.get("/translations/")
 def get_translations(s3_client=Depends(get_s3_client)):
-    objects = s3_client.list_objects_v2(Bucket='translation_api_translations_bucket')
-    if 'Contents' not in objects:
-        return {'message': 'No translations found'}
-    translations = []
-    for obj in objects['Contents']:
-        data = s3_client.get_object(Bucket='translation_api_translations_bucket',
-        Key=obj['Key'])['Body'].read()
-        extracted_dict = json.loads(data)
-        translations.append(extracted_dict)
+    try:
+        objects = s3_client.list_objects_v2(Bucket='translation_api_translations_bucket')
+        if 'Contents' not in objects:
+            return {'message': 'No translations found'}
+        translations = []
+        for obj in objects['Contents']:
+            data = s3_client.get_object(Bucket='translation_api_translations_bucket',
+            Key=obj['Key'])['Body'].read()
+            extracted_dict = json.loads(data)
+            translations.append(extracted_dict)
 
-    return {'translations': translations}    
+        return {'translations': translations}    
+    
+    except ClientError as e:
+        return JSONResponse (
+            status_code=500,
+            content={"error": f'Failed to list objects: {str(e)}'})
+    
+
 
 
 @app.exception_handler(RuntimeError)
