@@ -6,6 +6,7 @@ from langdetect.lang_detect_exception import LangDetectException
 from moto import mock_aws
 import boto3
 import json
+from botocore.exceptions import ClientError
 
 @pytest.fixture()
 def test_client():
@@ -30,6 +31,19 @@ def test_client_with_s3_mock(s3_mock):
 	client = TestClient(app)
 	yield client
 	app.dependency_overrides.clear()
+
+@pytest.fixture()
+def test_client_with_error(mocker):
+	mock_s3_client = mocker.MagicMock()
+	error = {"Error":
+		   {"Code": "AccessDenied",
+	  		"Message": 'Access Denied'}}
+	mock_s3_client.list_objects_v2.side_effect = ClientError(error, "ListObjectsV2")
+	app.dependency_overrides[get_s3_client] = lambda: mock_s3_client
+	client = TestClient(app)
+	yield client
+	app.dependency_overrides.clear()
+
 
 @pytest.fixture()
 def de_translation_request(test_client, s3_mock):
@@ -244,4 +258,7 @@ class TestGetTranslations:
 		assert response.status_code == 200
 		assert response.json() == {'message': 'No translations found'}
 
-	def 
+	def test_get_translations_handles_client_error(self, test_client_with_error):		
+		response = test_client_with_error.get("/translations/")
+		assert response.status_code == 500
+		assert response.json() == {"error": "Failed to list objects: An error occurred (AccessDenied) when calling the ListObjectsV2 operation: Access Denied"}
