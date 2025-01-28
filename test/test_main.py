@@ -262,3 +262,9 @@ class TestGetTranslations:
 		response = test_client_with_error.get("/translations/")
 		assert response.status_code == 500
 		assert response.json() == {"error": "Failed to list objects: An error occurred (AccessDenied) when calling the ListObjectsV2 operation: Access Denied"}
+	
+	def test_get_translations_returns_only_10_items_by_default(self, test_client_with_s3_mock):
+		for _ in range(20):
+			test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+		response = test_client_with_s3_mock.get("/translations/")
+		assert len(response.json()['translations']) == 10
