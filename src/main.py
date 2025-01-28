@@ -157,9 +157,22 @@ def get_languages():
     return {'languages': langs_dict}
 
 @app.get("/translations/")
-def get_translations(s3_client=Depends(get_s3_client)):
+def get_translations(
+    s3_client=Depends(get_s3_client),
+    max_items: int = 10,
+    continuation_token: str = None
+    ):
     try:
-        objects = s3_client.list_objects_v2(Bucket='translation_api_translations_bucket')
+        list_objects_request = {
+            "Bucket": "translation_api_translations_bucket",
+            "MaxKeys": max_items
+        }
+
+        if continuation_token:
+            list_objects_request['ContinuationToken'] = continuation_token
+
+        objects = s3_client.list_objects_v2(**list_objects_request)
+        
         if 'Contents' not in objects:
             return {'message': 'No translations found'}
         translations = []
@@ -176,8 +189,6 @@ def get_translations(s3_client=Depends(get_s3_client)):
             status_code=500,
             content={"error": f'Failed to list objects: {str(e)}'})
     
-
-
 
 @app.exception_handler(RuntimeError)
 def handle_runtime_errors(request: Request, exc: RuntimeError):
