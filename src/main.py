@@ -182,7 +182,8 @@ def get_translations(
             extracted_dict = json.loads(data)
             translations.append(extracted_dict)
 
-        return {'translations': translations}    
+        return {'translations': translations,
+                'next_page': objects.get("NextContinuationToken")}    
     
     except ClientError as e:
         return JSONResponse (
