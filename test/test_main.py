@@ -244,14 +244,14 @@ class TestGetTranslations:
 	def test_returns_correct_data_from_single_dict(self, test_client_with_s3_mock, datetime_mock):
 		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
 		response = test_client_with_s3_mock.get("/translations/")
-		assert response.json() == {'translations': [{
+		assert response.json()['translations'] == [{
 			"id": 1,
 			'original_text': 'Hello world',
 			"original_lang": 'en',
 			'translated_text': 'Hallo Welt',
 			'output_lang': 'de',
 			'timestamp': 'mock_timestamp',
-			'mismatch_detected': False}]}
+			'mismatch_detected': False}]
 
 	def test_returns_message_if_no_translations(self, test_client_with_s3_mock):
 		response = test_client_with_s3_mock.get("/translations/")
@@ -264,7 +264,15 @@ class TestGetTranslations:
 		assert response.json() == {"error": "Failed to list objects: An error occurred (AccessDenied) when calling the ListObjectsV2 operation: Access Denied"}
 	
 	def test_get_translations_returns_only_10_items_by_default(self, test_client_with_s3_mock):
-		for _ in range(20):
+		for _ in range(15):
 			test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
 		response = test_client_with_s3_mock.get("/translations/")
 		assert len(response.json()['translations']) == 10
+
+	def test_returns_continuation_token_where_required(self, test_client_with_s3_mock):
+		for _ in range(15):
+			test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+		response = test_client_with_s3_mock.get("/translations/")
+		assert 'translations' in response.json().keys()
+		assert 'next_page' in response.json().keys()
+		assert isinstance(response.json()['next_page'], str)
