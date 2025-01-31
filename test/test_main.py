@@ -192,10 +192,10 @@ class TestPostTranslate:
 		
 		object_list = get_s3_client().list_objects_v2(Bucket='translation_api_translations_bucket')
 
-		assert object_list['Contents'][0]['Key'] == 'mock_timestamp'
+		assert object_list['Contents'][0]['Key'] == '-mock_timestamp'
 		result = get_s3_client().get_object(
 				Bucket='translation_api_translations_bucket',
-				Key='mock_timestamp')['Body'].read()
+				Key='-mock_timestamp')['Body'].read()
 			
 		assert json.loads(result)['original_text'] == 'Hello world'
 		assert json.loads(result)['original_lang'] == 'en'
@@ -276,3 +276,13 @@ class TestGetTranslations:
 		assert 'translations' in response.json().keys()
 		assert 'next_page' in response.json().keys()
 		assert isinstance(response.json()['next_page'], str)
+	
+	def test_most_recent_items_returned_first(self, test_client_with_s3_mock):
+		for _ in range(10):
+			test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
+		response = test_client_with_s3_mock.get("/translations/")
+		assert response.json()['translations'][0]['output_lang'] == 'fr'
+
+
+# check fetch latest ID util function
