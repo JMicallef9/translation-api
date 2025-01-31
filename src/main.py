@@ -138,7 +138,9 @@ def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)
     if request.input_lang and request.input_lang != detected_lang:
         translation_info["mismatch_detected"] = True
 
-    save_to_s3(translation_info, 'translation_api_translations_bucket', translation_info['timestamp'], s3_client)
+    negative_timestamp = '-' + translation_info['timestamp']
+
+    save_to_s3(translation_info, 'translation_api_translations_bucket', negative_timestamp, s3_client)
         
     return translation_info
 
