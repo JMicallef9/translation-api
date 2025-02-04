@@ -104,6 +104,8 @@ class TestFetchLatestID:
 		assert result == 2
 		assert isinstance(result, int)
 
+class TestFetchLatestTimestamp:
+	
 
 class TestPostTranslate:
 	def test_returns_201_status_code(self, de_translation_request):
@@ -284,5 +286,3 @@ class TestGetTranslations:
 		response = test_client_with_s3_mock.get("/translations/")
 		assert response.json()['translations'][0]['output_lang'] == 'fr'
 
-
-# check fetch latest ID util function
