@@ -74,6 +74,9 @@ def fetch_latest_id(bucket_name, s3_client):
     latest_id = json.loads(last_item)['id']
     return latest_id
 
+def fetch_latest_timestamp(bucket_name, s3_client):
+    pass
+
 @app.post("/translate/", status_code=201)
 def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)):
     '''
