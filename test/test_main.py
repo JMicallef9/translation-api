@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from src.main import app, save_to_s3, get_s3_client, fetch_latest_id
+from src.main import app, save_to_s3, get_s3_client, fetch_latest_id, fetch_latest_timestamp
 import pytest
 from unittest.mock import patch, MagicMock
 from langdetect.lang_detect_exception import LangDetectException
@@ -105,6 +105,19 @@ class TestFetchLatestID:
 		assert isinstance(result, int)
 
 class TestFetchLatestTimestamp:
+	def test_extracts_latest_timestamp(self, test_client_with_s3_mock):
+		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "DE"})
+		with patch('src.main.datetime') as mock_dt:
+			mock_now = MagicMock()
+			mock_now.isoformat.return_value = 'mock_timestamp'
+			mock_dt.now.return_value = mock_now
+			test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
+		result = fetch_latest_timestamp('translation_api_translations_bucket', get_s3_client())
+		assert result == 'mock_timestamp'
+
+	def test_returns_zero_if_bucket_is_empty(self, test_client_with_s3_mock):
+		result = fetch_latest_timestamp('translation_api_translations_bucket', get_s3_client())
+		assert result == 0
 	
 
 class TestPostTranslate:
@@ -194,10 +207,10 @@ class TestPostTranslate:
 		
 		object_list = get_s3_client().list_objects_v2(Bucket='translation_api_translations_bucket')
 
-		assert object_list['Contents'][0]['Key'] == '-mock_timestamp'
+		assert object_list['Contents'][0]['Key'] == 'mock_timestamp'
 		result = get_s3_client().get_object(
 				Bucket='translation_api_translations_bucket',
-				Key='-mock_timestamp')['Body'].read()
+				Key='mock_timestamp')['Body'].read()
 			
 		assert json.loads(result)['original_text'] == 'Hello world'
 		assert json.loads(result)['original_lang'] == 'en'
