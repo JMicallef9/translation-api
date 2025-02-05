@@ -7,6 +7,8 @@ from moto import mock_aws
 import boto3
 import json
 from botocore.exceptions import ClientError
+import asyncio
+import httpx
 
 @pytest.fixture()
 def test_client():
@@ -30,6 +32,16 @@ def test_client_with_s3_mock(s3_mock):
 	app.dependency_overrides[get_s3_client] = override_get_s3_client
 	client = TestClient(app)
 	yield client
+	app.dependency_overrides.clear()
+
+@pytest.fixture()
+async def test_async_client_with_s3_mock(s3_mock):
+	def override_get_s3_client():
+		return s3_mock
+	app.dependency_overrides[get_s3_client] = override_get_s3_client
+	
+	async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+		yield client
 	app.dependency_overrides.clear()
 
 @pytest.fixture()
@@ -69,6 +81,9 @@ def dummy_request():
         "timestamp": '2015-01-27T05:57:31.399861+00:00',
         "mismatch_detected": False
         }
+
+async def async_post(client, text, lang):
+	await client.post("/translate/", json={'text': text, 'target_lang': lang})
 
 class TestSaveToS3:
     def test_object_saved_to_s3_bucket(self, s3_mock, dummy_request):
@@ -292,10 +307,19 @@ class TestGetTranslations:
 		assert 'next_page' in response.json().keys()
 		assert isinstance(response.json()['next_page'], str)
 	
-	def test_most_recent_items_returned_first(self, test_client_with_s3_mock):
-		for _ in range(10):
-			test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
-		test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
-		response = test_client_with_s3_mock.get("/translations/")
-		assert response.json()['translations'][0]['output_lang'] == 'fr'
+	@pytest.mark.asyncio()
+	async def test_most_recent_items_returned_first(self, test_async_client_with_s3_mock):
+		
+			tasks = [async_post(test_async_client_with_s3_mock, "Hello world", "de") for _ in range(10)]
+			tasks.append(async_post(test_async_client_with_s3_mock, "Hello world", "fr"))
+
+			await asyncio.gather(*tasks)
+			response = await test_async_client_with_s3_mock.get("/translations")
+
+			assert response.json()['translations'][0]['output_lang'] == 'fr'
+
+		# for _ in range(10):
+		# 	test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
+		# test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
+		# response = test_client_with_s3_mock.get("/translations/")
 
