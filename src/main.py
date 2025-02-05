@@ -75,7 +75,12 @@ def fetch_latest_id(bucket_name, s3_client):
     return latest_id
 
 def fetch_latest_timestamp(bucket_name, s3_client):
-    pass
+    objects = s3_client.list_objects_v2(Bucket=bucket_name)
+    if 'Contents' not in objects:
+        return 0
+    last_modified = lambda obj: obj['LastModified']
+    latest_key = [obj['Key'] for obj in sorted(objects['Contents'], key=last_modified)][-1]
+    return latest_key
 
 @app.post("/translate/", status_code=201)
 def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)):
@@ -141,9 +146,7 @@ def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)
     if request.input_lang and request.input_lang != detected_lang:
         translation_info["mismatch_detected"] = True
 
-    negative_timestamp = '-' + translation_info['timestamp']
-
-    save_to_s3(translation_info, 'translation_api_translations_bucket', negative_timestamp, s3_client)
+    save_to_s3(translation_info, 'translation_api_translations_bucket', translation_info['timestamp'], s3_client)
         
     return translation_info
 
