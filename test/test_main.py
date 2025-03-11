@@ -10,8 +10,10 @@ from botocore.exceptions import ClientError
 import asyncio
 from httpx import AsyncClient
 import uvicorn
-from multiprocessing import Process
+import multiprocessing
 from time import sleep
+
+multiprocessing.set_start_method("spawn")
 
 
 @pytest.fixture()
@@ -31,11 +33,11 @@ def s3_mock():
 
 @pytest.fixture(scope="module", autouse=True)
 def start_test_server():
-    process = Process(target=uvicorn.run, args=("main:app",), kwargs={"host": "127.0.0.1", "port": 8000, "log_level": "critical"})
+    process = multiprocessing.Process(target=uvicorn.run, args=(app,), kwargs={"host": "127.0.0.1", "port": 8000, "log_level": "critical"})
     process.start()
-    sleep(1) 
+    sleep(1)
     yield
-    process.terminate() 
+    process.terminate()
 
 
 
