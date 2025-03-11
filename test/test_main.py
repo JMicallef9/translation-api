@@ -32,7 +32,7 @@ def s3_mock():
 @pytest.fixture(scope="module", autouse=True)
 def start_test_server():
     """Start a real Uvicorn test server in a separate process."""
-    process = Process(target=uvicorn.run, args=(app,), kwargs={"host": "127.0.0.1", "port": 8000, "log_level": "critical"})
+    process = Process(target=uvicorn.run, args=("main:app",), kwargs={"host": "127.0.0.1", "port": 8000, "log_level": "critical"})
     process.start()
     sleep(1)  # Give the server time to start
     yield
