@@ -82,6 +82,10 @@ def fetch_latest_timestamp(bucket_name, s3_client):
     latest_key = [obj['Key'] for obj in sorted(objects['Contents'], key=last_modified)][-1]
     return latest_key
 
+@app.get("/healthcheck")
+def get_healthcheck():
+	return {"message": "Application is healthy"}
+
 @app.post("/translate/", status_code=201)
 def translate_text(request: TranslationRequest, s3_client=Depends(get_s3_client)):
     '''

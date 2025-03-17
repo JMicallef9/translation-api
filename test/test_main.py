@@ -9,9 +9,9 @@ import json
 from botocore.exceptions import ClientError
 import asyncio
 from httpx import AsyncClient
-import uvicorn
 from time import sleep
 import subprocess
+import requests
 
 
 @pytest.fixture()
@@ -29,19 +29,37 @@ def s3_mock():
                          })
         yield s3
 
+
+@pytest.fixture()
+async def async_s3_mock():
+    with mock_aws():
+        s3 = boto3.client('s3', region_name='eu-west-2')
+        s3.create_bucket(Bucket='translation_api_translations_bucket',
+                         CreateBucketConfiguration={
+                            'LocationConstraint': 'eu-west-2'
+                         })
+        yield s3
+
+
 @pytest.fixture(scope="module", autouse=True)
 def start_test_server():
-    process = subprocess.Popen(
+	process = subprocess.Popen(
 		[
 			"uvicorn", "main:app",
 			"--host", "127.0.0.1",
 			"--port", "8000",
 			"--log-level", "critical"
-   ])
-    sleep(1)
-    yield
-    process.terminate()
-
+		]
+	)
+	for _ in range(10):
+		try:
+			response = requests.get("http://127.0.0.1:8000/health")
+			if response.status_code == 200:
+				break
+		except requests.ConnectionError:
+			sleep(1)
+	yield
+	process.terminate()
 
 
 @pytest.fixture()
@@ -54,14 +72,14 @@ def test_client_with_s3_mock(s3_mock):
 	app.dependency_overrides.clear()
 
 @pytest.fixture
-async def test_async_client_with_s3_mock(s3_mock):
-    """Provides an Async HTTPX client that connects to the test server."""
+async def test_async_client_with_s3_mock(async_s3_mock):
+    
     def override_get_s3_client():
-        return s3_mock
+        return async_s3_mock
     app.dependency_overrides[get_s3_client] = override_get_s3_client
 
     async with AsyncClient(base_url="http://127.0.0.1:8000") as client:
-        yield client  # Provide the client to the test
+        yield client
 
     app.dependency_overrides.clear()
 
@@ -330,7 +348,6 @@ class TestGetTranslations:
 	
 	@pytest.mark.asyncio()
 	async def test_most_recent_items_returned_first(self, test_async_client_with_s3_mock):
-		
 		tasks = [async_post(test_async_client_with_s3_mock, "Hello world", "de") for _ in range(10)]
 		tasks.append(async_post(test_async_client_with_s3_mock, "Hello world", "fr"))
 
