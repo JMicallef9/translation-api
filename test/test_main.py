@@ -45,7 +45,7 @@ async def async_s3_mock():
 def start_test_server():
 	process = subprocess.Popen(
 		[
-			"uvicorn", "main:app",
+			"python", "-m", "uvicorn", "src.main:app",
 			"--host", "127.0.0.1",
 			"--port", "8000",
 			"--log-level", "critical"
