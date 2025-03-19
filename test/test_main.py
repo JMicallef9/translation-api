@@ -341,7 +341,7 @@ class TestGetTranslations:
 	def test_returns_continuation_token_where_required(self, test_client_with_s3_mock):
 		for _ in range(15):
 			test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
-		response = test_client_with_s3_mock.get("/translations/")
+		response = test_client_with_s3_mock.get("/translations")
 		assert 'translations' in response.json().keys()
 		assert 'next_page' in response.json().keys()
 		assert isinstance(response.json()['next_page'], str)
@@ -352,12 +352,7 @@ class TestGetTranslations:
 		tasks.append(async_post(test_async_client_with_s3_mock, "Hello world", "fr"))
 
 		await asyncio.gather(*tasks)
-		response = await test_async_client_with_s3_mock.get("/translations")
-
+		response = await test_async_client_with_s3_mock.get("/translations/")
+		print(response.status_code)
+		print(response.text)
 		assert response.json()['translations'][0]['output_lang'] == 'fr'
-
-		# for _ in range(10):
-		# 	test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "de"})
-		# test_client_with_s3_mock.post("/translate/", json={"text": "Hello world", "target_lang": "fr"})
-		# response = test_client_with_s3_mock.get("/translations/")
-
