@@ -12,6 +12,8 @@ from httpx import AsyncClient
 from time import sleep
 import subprocess
 import requests
+from contextlib import asynccontextmanager
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture()
@@ -30,36 +32,46 @@ def s3_mock():
         yield s3
 
 
-@pytest.fixture()
-async def async_s3_mock():
-    with mock_aws():
-        s3 = boto3.client('s3', region_name='eu-west-2')
-        s3.create_bucket(Bucket='translation_api_translations_bucket',
-                         CreateBucketConfiguration={
-                            'LocationConstraint': 'eu-west-2'
-                         })
-        yield s3
+# @asynccontextmanager
+# async def async_s3():
+# 	mock = mock_aws()
+# 	mock.start()
+# 	try:
+# 		s3 = boto3.client('s3', region_name='eu-west-2')
+# 		s3.create_bucket(Bucket='translation_api_translations_bucket',
+#                          CreateBucketConfiguration={
+#                             'LocationConstraint': 'eu-west-2'
+#                          })
+# 		yield s3
+# 	finally:
+# 		mock.stop()
+
+# @pytest.fixture()
+# async def async_s3_mock():
+# 	async with async_s3() as s3:
+# 		yield s3
 
 
-@pytest.fixture(scope="module", autouse=True)
-def start_test_server():
-	process = subprocess.Popen(
-		[
-			"python", "-m", "uvicorn", "src.main:app",
-			"--host", "127.0.0.1",
-			"--port", "8000",
-			"--log-level", "critical"
-		]
-	)
-	for _ in range(10):
-		try:
-			response = requests.get("http://127.0.0.1:8000/health")
-			if response.status_code == 200:
-				break
-		except requests.ConnectionError:
-			sleep(1)
-	yield
-	process.terminate()
+
+# @pytest.fixture(scope="module", autouse=True)
+# def start_test_server():
+# 	process = subprocess.Popen(
+# 		[
+# 			"python", "-m", "uvicorn", "src.main:app",
+# 			"--host", "127.0.0.1",
+# 			"--port", "8000",
+# 			"--log-level", "critical"
+# 		]
+# 	)
+# 	for _ in range(10):
+# 		try:
+# 			response = requests.get("http://127.0.0.1:8000/health")
+# 			if response.status_code == 200:
+# 				break
+# 		except requests.ConnectionError:
+# 			sleep(1)
+# 	yield
+# 	process.terminate()
 
 
 @pytest.fixture()
@@ -71,17 +83,23 @@ def test_client_with_s3_mock(s3_mock):
 	yield client
 	app.dependency_overrides.clear()
 
-@pytest.fixture
-async def test_async_client_with_s3_mock(async_s3_mock):
-    
-    def override_get_s3_client():
-        return async_s3_mock
-    app.dependency_overrides[get_s3_client] = override_get_s3_client
 
-    async with AsyncClient(base_url="http://127.0.0.1:8000") as client:
-        yield client
+@pytest.fixture()
+async def test_async_client_with_s3_mock():
+	with mock_aws():
+		s3 = boto3.client('s3', region_name='eu-west-2')
+		s3.create_bucket(Bucket='translation_api_translations_bucket',
+                         CreateBucketConfiguration={
+                            'LocationConstraint': 'eu-west-2'
+                         })
 
-    app.dependency_overrides.clear()
+		app.dependency_overrides[get_s3_client] = lambda: s3
+
+		async with AsyncClient(base_url="http://test") as client:
+			yield client
+	
+		app.dependency_overrides.clear()
+
 
 @pytest.fixture()
 def test_client_with_error(mocker):
